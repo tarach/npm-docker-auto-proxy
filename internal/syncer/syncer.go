@@ -12,7 +12,7 @@ import (
 type Docker interface {
 	ListRunningContainers(ctx context.Context) ([]dockerclient.ContainerInfo, error)
 	InspectContainer(ctx context.Context, containerID string) (dockerclient.ContainerInfo, error)
-	WatchContainerEvents(ctx context.Context) (<-chan dockerclient.ContainerEvent, <-chan error)
+	WatchContainerEvents(ctx context.Context) <-chan dockerclient.ContainerEventResult
 }
 
 type NPM interface {
@@ -44,12 +44,22 @@ func (s *Syncer) SyncRunningContainers(ctx context.Context) error {
 		return err
 	}
 
-	s.logger.Info("initial container scan started", "event", "initial_scan_started", "containers", len(containers))
+	s.logger.Info(
+		"initial container scan started",
+		"event", "initial_scan_started",
+		"containers", len(containers),
+	)
 
 	for _, container := range containers {
 		err := s.HandleContainerStart(ctx, container)
 		if err != nil {
-			s.logger.Error("container sync failed", "event", "container_sync_failed", "container", container.Name, "container_id", container.ID, "error", err.Error())
+			s.logger.Error(
+				"container sync failed",
+				"event", "container_sync_failed",
+				"container", container.Name,
+				"container_id", container.ID,
+				"error", err.Error(),
+			)
 		}
 	}
 
@@ -59,58 +69,59 @@ func (s *Syncer) SyncRunningContainers(ctx context.Context) error {
 }
 
 func (s *Syncer) WatchDockerEvents(ctx context.Context) error {
-	events, errs := s.docker.WatchContainerEvents(ctx)
+	for result := range s.docker.WatchContainerEvents(ctx) {
+		if result.Err != nil {
+			return result.Err
+		}
 
-	startActions := map[string]func(context.Context, dockerclient.ContainerEvent) error{
+		err := s.HandleDockerEvent(ctx, result.Event)
+		if err != nil {
+			s.logger.Error(
+				"docker event handling failed",
+				"event", "docker_event_handling_failed",
+				"docker_action", result.Event.Action,
+				"container", result.Event.Name,
+				"container_id", result.Event.ID,
+				"error", err.Error(),
+			)
+		}
+	}
+
+	return nil
+}
+
+func (s *Syncer) HandleDockerEvent(ctx context.Context, event dockerclient.ContainerEvent) error {
+	s.logger.Info(
+		"docker event received",
+		"event", "docker_event_received",
+		"docker_action", event.Action,
+		"container", event.Name,
+		"container_id", event.ID,
+	)
+
+	handlers := map[string]func(context.Context, dockerclient.ContainerEvent) error{
 		"create":  s.handleStartEvent,
 		"start":   s.handleStartEvent,
 		"restart": s.handleStartEvent,
-	}
-
-	stopActions := map[string]func(context.Context, dockerclient.ContainerEvent) error{
 		"die":     s.handleStopEvent,
 		"stop":    s.handleStopEvent,
 		"destroy": s.handleStopEvent,
 	}
 
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case err := <-errs:
-			if err != nil {
-				return err
-			}
-		case event, ok := <-events:
-			if !ok {
-				return nil
-			}
+	handler, found := handlers[event.Action]
+	if !found {
+		s.logger.Debug(
+			"docker event ignored",
+			"event", "docker_event_ignored",
+			"docker_action", event.Action,
+			"container", event.Name,
+			"container_id", event.ID,
+		)
 
-			s.logger.Info("docker event received", "event", "docker_event_received", "docker_action", event.Action, "container", event.Name, "container_id", event.ID)
-
-			handler, found := startActions[event.Action]
-			if found {
-				err := handler(ctx, event)
-				if err != nil {
-					s.logger.Error("start event handling failed", "event", "start_event_failed", "docker_action", event.Action, "container", event.Name, "container_id", event.ID, "error", err.Error())
-				}
-
-				continue
-			}
-
-			handler, found = stopActions[event.Action]
-			if found {
-				err := handler(ctx, event)
-				if err != nil {
-					s.logger.Error("stop event handling failed", "event", "stop_event_failed", "docker_action", event.Action, "container", event.Name, "container_id", event.ID, "error", err.Error())
-				}
-
-				continue
-			}
-
-			s.logger.Debug("docker event ignored", "event", "docker_event_ignored", "docker_action", event.Action, "container", event.Name, "container_id", event.ID)
-		}
+		return nil
 	}
+
+	return handler(ctx, event)
 }
 
 func (s *Syncer) handleStartEvent(ctx context.Context, event dockerclient.ContainerEvent) error {
@@ -136,12 +147,24 @@ func (s *Syncer) handleStopEvent(ctx context.Context, event dockerclient.Contain
 func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclient.ContainerInfo) error {
 	desired, err := proxy.FromLabels(container.Labels)
 	if err != nil {
-		s.logger.Warn("container has invalid proxy labels", "event", "container_invalid_labels", "container", container.Name, "container_id", container.ID, "error", err.Error())
+		s.logger.Warn(
+			"container has invalid proxy labels",
+			"event", "container_invalid_labels",
+			"container", container.Name,
+			"container_id", container.ID,
+			"error", err.Error(),
+		)
 		return nil
 	}
 
 	if !desired.Enabled {
-		s.logger.Debug("container skipped", "event", "container_skipped", "reason", "proxy_not_enabled", "container", container.Name, "container_id", container.ID)
+		s.logger.Debug(
+			"container skipped",
+			"event", "container_skipped",
+			"reason", "proxy_not_enabled",
+			"container", container.Name,
+			"container_id", container.ID,
+		)
 		return nil
 	}
 
@@ -156,7 +179,16 @@ func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclien
 			return err
 		}
 
-		s.logger.Info("proxy host created", "event", "proxy_host_created", "container", container.Name, "container_id", container.ID, "domain", desired.Domain, "proxy_host_id", created.ID, "forward_host", desired.ForwardHost, "forward_port", desired.ForwardPort)
+		s.logger.Info(
+			"proxy host created",
+			"event", "proxy_host_created",
+			"container", container.Name,
+			"container_id", container.ID,
+			"domain", desired.Domain,
+			"proxy_host_id", created.ID,
+			"forward_host", desired.ForwardHost,
+			"forward_port", desired.ForwardPort,
+		)
 		return nil
 	}
 
@@ -166,12 +198,26 @@ func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclien
 			return err
 		}
 
-		s.logger.Info("proxy host enabled", "event", "proxy_host_enabled", "container", container.Name, "container_id", container.ID, "domain", desired.Domain, "proxy_host_id", existing.ID)
+		s.logger.Info(
+			"proxy host enabled",
+			"event", "proxy_host_enabled",
+			"container", container.Name,
+			"container_id", container.ID,
+			"domain", desired.Domain,
+			"proxy_host_id", existing.ID,
+		)
 	}
 
 	changes := npm.Differences(existing, desired)
 	if len(changes) == 0 {
-		s.logger.Info("proxy host unchanged", "event", "proxy_host_unchanged", "container", container.Name, "container_id", container.ID, "domain", desired.Domain, "proxy_host_id", existing.ID)
+		s.logger.Info(
+			"proxy host unchanged",
+			"event", "proxy_host_unchanged",
+			"container", container.Name,
+			"container_id", container.ID,
+			"domain", desired.Domain,
+			"proxy_host_id", existing.ID,
+		)
 		return nil
 	}
 
@@ -180,7 +226,15 @@ func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclien
 		return err
 	}
 
-	s.logger.Info("proxy host updated", "event", "proxy_host_updated", "container", container.Name, "container_id", container.ID, "domain", desired.Domain, "proxy_host_id", updated.ID, "changed", changes)
+	s.logger.Info(
+		"proxy host updated",
+		"event", "proxy_host_updated",
+		"container", container.Name,
+		"container_id", container.ID,
+		"domain", desired.Domain,
+		"proxy_host_id", updated.ID,
+		"changed", changes,
+	)
 
 	return nil
 }
@@ -188,17 +242,36 @@ func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclien
 func (s *Syncer) HandleContainerStop(ctx context.Context, container dockerclient.ContainerInfo) error {
 	desired, err := proxy.FromLabels(container.Labels)
 	if err != nil {
-		s.logger.Warn("container has invalid proxy labels on stop", "event", "container_invalid_labels_on_stop", "container", container.Name, "container_id", container.ID, "error", err.Error())
+		s.logger.Warn(
+			"container has invalid proxy labels on stop",
+			"event", "container_invalid_labels_on_stop",
+			"container", container.Name,
+			"container_id", container.ID,
+			"error", err.Error(),
+		)
 		return nil
 	}
 
 	if !desired.Enabled {
-		s.logger.Debug("stop ignored", "event", "container_stop_ignored", "reason", "proxy_not_enabled", "container", container.Name, "container_id", container.ID)
+		s.logger.Debug(
+			"stop ignored",
+			"event", "container_stop_ignored",
+			"reason", "proxy_not_enabled",
+			"container", container.Name,
+			"container_id", container.ID,
+		)
 		return nil
 	}
 
 	if desired.OnStop == proxy.StopActionNone {
-		s.logger.Info("stop ignored", "event", "container_stop_ignored", "reason", "on_stop_not_configured", "container", container.Name, "container_id", container.ID, "domain", desired.Domain)
+		s.logger.Info(
+			"stop ignored",
+			"event", "container_stop_ignored",
+			"reason", "on_stop_not_configured",
+			"container", container.Name,
+			"container_id", container.ID,
+			"domain", desired.Domain,
+		)
 		return nil
 	}
 
@@ -208,7 +281,15 @@ func (s *Syncer) HandleContainerStop(ctx context.Context, container dockerclient
 	}
 
 	if !found {
-		s.logger.Info("stop action skipped", "event", "stop_action_skipped", "reason", "proxy_host_not_found", "container", container.Name, "container_id", container.ID, "domain", desired.Domain, "action", desired.OnStop)
+		s.logger.Info(
+			"stop action skipped",
+			"event", "stop_action_skipped",
+			"reason", "proxy_host_not_found",
+			"container", container.Name,
+			"container_id", container.ID,
+			"domain", desired.Domain,
+			"action", desired.OnStop,
+		)
 		return nil
 	}
 
@@ -219,7 +300,14 @@ func (s *Syncer) HandleContainerStop(ctx context.Context, container dockerclient
 
 	handler, found := handlers[desired.OnStop]
 	if !found {
-		s.logger.Warn("unknown on stop action", "event", "unknown_on_stop_action", "container", container.Name, "container_id", container.ID, "domain", desired.Domain, "action", desired.OnStop)
+		s.logger.Warn(
+			"unknown on stop action",
+			"event", "unknown_on_stop_action",
+			"container", container.Name,
+			"container_id", container.ID,
+			"domain", desired.Domain,
+			"action", desired.OnStop,
+		)
 		return nil
 	}
 
@@ -244,7 +332,15 @@ func (s *Syncer) logStopAction(container dockerclient.ContainerInfo, desired pro
 		proxy.StopActionDisable: "proxy host disabled",
 	}
 
-	s.logger.Info(messages[desired.OnStop], "event", events[desired.OnStop], "container", container.Name, "container_id", container.ID, "domain", desired.Domain, "proxy_host_id", proxyHostID, "reason", "container_stopped")
+	s.logger.Info(
+		messages[desired.OnStop],
+		"event", events[desired.OnStop],
+		"container", container.Name,
+		"container_id", container.ID,
+		"domain", desired.Domain,
+		"proxy_host_id", proxyHostID,
+		"reason", "container_stopped",
+	)
 }
 
 func labelsFromEvent(event dockerclient.ContainerEvent) map[string]string {

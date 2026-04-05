@@ -2,9 +2,8 @@ package dockerclient
 
 import (
 	"context"
+	"net/url"
 	"strings"
-
-	"github.com/docker/docker/api/types/container"
 )
 
 type ContainerInfo struct {
@@ -14,8 +13,28 @@ type ContainerInfo struct {
 	State  string
 }
 
+type containerListItem struct {
+	ID     string            `json:"Id"`
+	Names  []string          `json:"Names"`
+	Labels map[string]string `json:"Labels"`
+	State  string            `json:"State"`
+}
+
+type containerInspectResponse struct {
+	ID     string `json:"Id"`
+	Name   string `json:"Name"`
+	Config struct {
+		Labels map[string]string `json:"Labels"`
+	} `json:"Config"`
+	State struct {
+		Status string `json:"Status"`
+	} `json:"State"`
+}
+
 func (c *Client) ListRunningContainers(ctx context.Context) ([]ContainerInfo, error) {
-	items, err := c.api.ContainerList(ctx, container.ListOptions{All: false})
+	var items []containerListItem
+
+	err := c.doJSON(ctx, "GET", "/containers/json?all=false", &items)
 	if err != nil {
 		return nil, err
 	}
@@ -35,20 +54,18 @@ func (c *Client) ListRunningContainers(ctx context.Context) ([]ContainerInfo, er
 }
 
 func (c *Client) InspectContainer(ctx context.Context, containerID string) (ContainerInfo, error) {
-	item, err := c.api.ContainerInspect(ctx, containerID)
+	var item containerInspectResponse
+	escapedID := url.PathEscape(containerID)
+
+	err := c.doJSON(ctx, "GET", "/containers/"+escapedID+"/json", &item)
 	if err != nil {
 		return ContainerInfo{}, err
-	}
-
-	labels := map[string]string{}
-	if item.Config != nil {
-		labels = item.Config.Labels
 	}
 
 	return ContainerInfo{
 		ID:     item.ID,
 		Name:   strings.TrimPrefix(item.Name, "/"),
-		Labels: labels,
+		Labels: item.Config.Labels,
 		State:  item.State.Status,
 	}, nil
 }

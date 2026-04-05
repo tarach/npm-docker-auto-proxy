@@ -27,7 +27,7 @@ type DesiredHost struct {
 	ForwardPort           int
 	ForwardScheme         string
 	AllowWebsocketUpgrade bool
-	CertificateID          int
+	CertificateID         int
 	SSLForced             bool
 	HTTP2Support          bool
 	BlockExploits         bool
@@ -72,7 +72,7 @@ func FromLabels(labels map[string]string) (DesiredHost, error) {
 		ForwardPort:           forwardPort,
 		ForwardScheme:         scheme,
 		AllowWebsocketUpgrade: parseBool(labels[LabelWebsocket]),
-		CertificateID:          resolveCertificateID(labels),
+		CertificateID:         resolveCertificateID(labels),
 		SSLForced:             parseBool(labels[LabelForceSSL]),
 		HTTP2Support:          parseBoolDefault(labels[LabelHTTP2], true),
 		BlockExploits:         parseBoolDefault(labels[LabelBlockExploits], true),

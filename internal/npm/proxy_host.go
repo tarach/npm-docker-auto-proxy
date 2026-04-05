@@ -9,25 +9,25 @@ import (
 )
 
 type ProxyHost struct {
-	ID                    int               `json:"id,omitempty"`
-	DomainNames           []string          `json:"domain_names"`
-	ForwardHost           string            `json:"forward_host"`
-	ForwardPort           int               `json:"forward_port"`
-	AccessListID          int               `json:"access_list_id"`
-	CertificateID         int               `json:"certificate_id"`
-	SSLForced             bool              `json:"ssl_forced"`
-	CachingEnabled        bool              `json:"caching_enabled"`
-	BlockExploits         bool              `json:"block_exploits"`
-	AdvancedConfig        string            `json:"advanced_config"`
-	Meta                  map[string]any     `json:"meta"`
-	AllowWebsocketUpgrade bool              `json:"allow_websocket_upgrade"`
-	HTTP2Support          bool              `json:"http2_support"`
-	ForwardScheme         string            `json:"forward_scheme"`
-	Enabled               bool              `json:"enabled"`
-	Locations             []any             `json:"locations"`
-	HSTSEnabled           bool              `json:"hsts_enabled"`
-	HSTSSubdomains        bool              `json:"hsts_subdomains"`
-	TrustForwardedProto   bool              `json:"trust_forwarded_proto"`
+	ID                    int            `json:"id,omitempty"`
+	DomainNames           []string       `json:"domain_names"`
+	ForwardHost           string         `json:"forward_host"`
+	ForwardPort           int            `json:"forward_port"`
+	AccessListID          int            `json:"access_list_id"`
+	CertificateID         int            `json:"certificate_id"`
+	SSLForced             bool           `json:"ssl_forced"`
+	CachingEnabled        bool           `json:"caching_enabled"`
+	BlockExploits         bool           `json:"block_exploits"`
+	AdvancedConfig        string         `json:"advanced_config"`
+	Meta                  map[string]any `json:"meta"`
+	AllowWebsocketUpgrade bool           `json:"allow_websocket_upgrade"`
+	HTTP2Support          bool           `json:"http2_support"`
+	ForwardScheme         string         `json:"forward_scheme"`
+	Enabled               bool           `json:"enabled"`
+	Locations             []any          `json:"locations"`
+	HSTSEnabled           bool           `json:"hsts_enabled"`
+	HSTSSubdomains        bool           `json:"hsts_subdomains"`
+	TrustForwardedProto   bool           `json:"trust_forwarded_proto"`
 }
 
 type ChangeSet []string
@@ -128,7 +128,7 @@ func payloadFromDesired(desired proxy.DesiredHost) ProxyHost {
 		Enabled:               true,
 		Meta: map[string]any{
 			"letsencrypt_agree": false,
-			"dns_challenge":    false,
+			"dns_challenge":     false,
 		},
 	}
 }

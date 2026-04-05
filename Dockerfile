@@ -10,10 +10,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /out/npm-docker-auto-proxy ./cmd/npm-do
 
 FROM alpine:3.21
 
-RUN addgroup -S app && adduser -S app -G app
-
 COPY --from=builder /out/npm-docker-auto-proxy /usr/local/bin/npm-docker-auto-proxy
-
-USER app
 
 ENTRYPOINT ["/usr/local/bin/npm-docker-auto-proxy"]

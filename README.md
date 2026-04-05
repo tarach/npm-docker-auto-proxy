@@ -22,6 +22,7 @@ NPM_BASE_URL=http://nginx-proxy-manager:81/api
 NPM_EMAIL=admin@example.com
 NPM_PASSWORD=change-me
 LOG_LEVEL=info
+DOCKER_SOCKET_PATH=/var/run/docker.sock
 ```
 
 `LOG_LEVEL` accepts:
@@ -76,7 +77,7 @@ Stop behavior works only when `npm.proxy.enabled=true` and a valid domain is con
 ## Build
 
 ```bash
-docker compose build
+docker compose build --no-cache --progress=plain
 ```
 
 ## Run
@@ -104,6 +105,7 @@ export NPM_BASE_URL="http://192.168.1.110:30020/api"
 export NPM_EMAIL="admin@example.com"
 export NPM_PASSWORD="change-me"
 export LOG_LEVEL="debug"
+export DOCKER_SOCKET_PATH="/var/run/docker.sock"
 
 go run ./cmd/npm-docker-auto-proxy
 ```

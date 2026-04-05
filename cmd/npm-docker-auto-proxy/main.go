@@ -27,9 +27,11 @@ func main() {
 	logger := logging.New(cfg.LogLevel)
 	logger.Info("application started", "event", "app_started", "app", "npm-docker-auto-proxy")
 
-	dockerClient, err := dockerclient.New()
+	dockerClient := dockerclient.New(cfg.DockerSocketPath, logger)
+
+	err = dockerClient.Ping(ctx)
 	if err != nil {
-		logger.Error("docker client init failed", "event", "docker_client_init_failed", "error", err.Error())
+		logger.Error("docker ping failed", "event", "docker_ping_failed", "socket", cfg.DockerSocketPath, "error", err.Error())
 		os.Exit(1)
 	}
 

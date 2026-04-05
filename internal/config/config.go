@@ -7,18 +7,20 @@ import (
 )
 
 type Config struct {
-	NPMBaseURL string
-	NPMEmail   string
-	NPMPassword string
-	LogLevel   string
+	NPMBaseURL       string
+	NPMEmail         string
+	NPMPassword      string
+	LogLevel         string
+	DockerSocketPath string
 }
 
 func Load() (Config, error) {
 	cfg := Config{
-		NPMBaseURL: strings.TrimRight(strings.TrimSpace(os.Getenv("NPM_BASE_URL")), "/"),
-		NPMEmail: strings.TrimSpace(os.Getenv("NPM_EMAIL")),
-		NPMPassword: os.Getenv("NPM_PASSWORD"),
-		LogLevel: strings.TrimSpace(os.Getenv("LOG_LEVEL")),
+		NPMBaseURL:       strings.TrimRight(strings.TrimSpace(os.Getenv("NPM_BASE_URL")), "/"),
+		NPMEmail:         strings.TrimSpace(os.Getenv("NPM_EMAIL")),
+		NPMPassword:      os.Getenv("NPM_PASSWORD"),
+		LogLevel:         strings.TrimSpace(os.Getenv("LOG_LEVEL")),
+		DockerSocketPath: strings.TrimSpace(os.Getenv("DOCKER_SOCKET_PATH")),
 	}
 
 	if cfg.NPMBaseURL == "" {
@@ -35,6 +37,10 @@ func Load() (Config, error) {
 
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "info"
+	}
+
+	if cfg.DockerSocketPath == "" {
+		cfg.DockerSocketPath = "/var/run/docker.sock"
 	}
 
 	return cfg, nil
