@@ -4,6 +4,49 @@
 
 It is intended for homelab setups where containers declare their reverse proxy configuration through Docker labels.
 
+## Table of contents
+
+- [Features](https://github.com/tarach/npm-docker-auto-proxy#features)
+- [How it works](https://github.com/tarach/npm-docker-auto-proxy#how-it-works)
+- [Docker socket access](https://github.com/tarach/npm-docker-auto-proxy#docker-socket-access)
+- [Environment variables](https://github.com/tarach/npm-docker-auto-proxy#environment-variables)
+  - [`NPM_BASE_URL`](https://github.com/tarach/npm-docker-auto-proxy#npm_base_url)
+  - [`NPM_EMAIL`](https://github.com/tarach/npm-docker-auto-proxy#npm_email)
+  - [`NPM_PASSWORD`](https://github.com/tarach/npm-docker-auto-proxy#npm_password)
+  - [`LOG_LEVEL`](https://github.com/tarach/npm-docker-auto-proxy#log_level)
+  - [`DOCKER_SOCKET_PATH`](https://github.com/tarach/npm-docker-auto-proxy#docker_socket_path)
+- [Docker Compose](https://github.com/tarach/npm-docker-auto-proxy#docker-compose)
+- [Build](https://github.com/tarach/npm-docker-auto-proxy#build)
+- [Run](https://github.com/tarach/npm-docker-auto-proxy#run)
+- [Logs](https://github.com/tarach/npm-docker-auto-proxy#logs)
+- [Container labels](https://github.com/tarach/npm-docker-auto-proxy#container-labels)
+- [TrueNAS Scale](https://github.com/tarach/npm-docker-auto-proxy#truenas-scale)
+  - [Configure labels in the TrueNAS UI](https://github.com/tarach/npm-docker-auto-proxy#configure-labels-in-the-truenas-ui)
+- [Supported labels](https://github.com/tarach/npm-docker-auto-proxy#supported-labels)
+  - [`npm.proxy.enabled`](https://github.com/tarach/npm-docker-auto-proxy#npmproxyenabled)
+  - [`npm.proxy.domain`](https://github.com/tarach/npm-docker-auto-proxy#npmproxydomain)
+  - [`npm.proxy.forward_host`](https://github.com/tarach/npm-docker-auto-proxy#npmproxyforward_host)
+  - [`npm.proxy.forward_port`](https://github.com/tarach/npm-docker-auto-proxy#npmproxyforward_port)
+  - [`npm.proxy.scheme`](https://github.com/tarach/npm-docker-auto-proxy#npmproxyscheme)
+  - [`npm.proxy.websocket`](https://github.com/tarach/npm-docker-auto-proxy#npmproxywebsocket)
+  - [`npm.proxy.block_exploits`](https://github.com/tarach/npm-docker-auto-proxy#npmproxyblock_exploits)
+  - [`npm.proxy.http2`](https://github.com/tarach/npm-docker-auto-proxy#npmproxyhttp2)
+- [SSL certificates](https://github.com/tarach/npm-docker-auto-proxy#ssl-certificates)
+  - [Option 1: certificate name or domain](https://github.com/tarach/npm-docker-auto-proxy#option-1-certificate-name-or-domain)
+  - [Option 2: certificate ID](https://github.com/tarach/npm-docker-auto-proxy#option-2-certificate-id)
+  - [Certificate lookup permissions](https://github.com/tarach/npm-docker-auto-proxy#certificate-lookup-permissions)
+  - [SSL validation rules](https://github.com/tarach/npm-docker-auto-proxy#ssl-validation-rules)
+- [Stop behavior](https://github.com/tarach/npm-docker-auto-proxy#stop-behavior)
+  - [Delete on stop](https://github.com/tarach/npm-docker-auto-proxy#delete-on-stop)
+  - [Disable on stop](https://github.com/tarach/npm-docker-auto-proxy#disable-on-stop)
+  - [No stop action](https://github.com/tarach/npm-docker-auto-proxy#no-stop-action)
+- [Safety rules](https://github.com/tarach/npm-docker-auto-proxy#safety-rules)
+- [Example: Jellyfin](https://github.com/tarach/npm-docker-auto-proxy#example-jellyfin)
+- [Testing NPM API access](https://github.com/tarach/npm-docker-auto-proxy#testing-npm-api-access)
+- [Testing backend reachability from NPM](https://github.com/tarach/npm-docker-auto-proxy#testing-backend-reachability-from-npm)
+- [Development](https://github.com/tarach/npm-docker-auto-proxy#development)
+- [Notes](https://github.com/tarach/npm-docker-auto-proxy#notes)
+
 ## Features
 
 - Watches Docker container events.
