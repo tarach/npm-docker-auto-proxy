@@ -22,6 +22,7 @@ type NPM interface {
 	EnableProxyHost(ctx context.Context, id int) error
 	DisableProxyHost(ctx context.Context, id int) error
 	DeleteProxyHost(ctx context.Context, id int) error
+	ResolveCertificateID(ctx context.Context, ref string) (int, error)
 }
 
 type Syncer struct {
@@ -124,6 +125,42 @@ func (s *Syncer) HandleDockerEvent(ctx context.Context, event dockerclient.Conta
 	return handler(ctx, event)
 }
 
+func (s *Syncer) ResolveCertificate(ctx context.Context, desired proxy.DesiredHost) (proxy.DesiredHost, error) {
+	if !desired.SSLEnabled {
+		return desired, nil
+	}
+
+	if desired.CertificateID > 0 {
+		return desired, nil
+	}
+
+	certificateID, err := s.npm.ResolveCertificateID(ctx, desired.CertificateRef)
+	if err != nil {
+		s.logger.Error(
+			"certificate resolve failed",
+			"event", "certificate_resolve_failed",
+			"domain", desired.Domain,
+			"certificate", desired.CertificateRef,
+			"hint", "certificate lookup requires NPM certificate permissions; use npm.proxy.certificate_id if lookup is not available",
+			"error", err.Error(),
+		)
+
+		return desired, err
+	}
+
+	desired.CertificateID = certificateID
+
+	s.logger.Info(
+		"certificate resolved",
+		"event", "certificate_resolved",
+		"domain", desired.Domain,
+		"certificate", desired.CertificateRef,
+		"certificate_id", certificateID,
+	)
+
+	return desired, nil
+}
+
 func (s *Syncer) handleStartEvent(ctx context.Context, event dockerclient.ContainerEvent) error {
 	container, err := s.docker.InspectContainer(ctx, event.ID)
 	if err != nil {
@@ -166,6 +203,11 @@ func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclien
 			"container_id", container.ID,
 		)
 		return nil
+	}
+
+	desired, err = s.ResolveCertificate(ctx, desired)
+	if err != nil {
+		return err
 	}
 
 	existing, found, err := s.npm.FindProxyHostByDomain(ctx, desired.Domain)

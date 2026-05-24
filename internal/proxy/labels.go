@@ -14,6 +14,8 @@ const (
 	LabelScheme        = "npm.proxy.scheme"
 	LabelWebsocket     = "npm.proxy.websocket"
 	LabelSSL           = "npm.proxy.ssl"
+	LabelCertificate   = "npm.proxy.certificate"
+	LabelCertificateID = "npm.proxy.certificate_id"
 	LabelForceSSL      = "npm.proxy.force_ssl"
 	LabelBlockExploits = "npm.proxy.block_exploits"
 	LabelHTTP2         = "npm.proxy.http2"
@@ -27,7 +29,9 @@ type DesiredHost struct {
 	ForwardPort           int
 	ForwardScheme         string
 	AllowWebsocketUpgrade bool
+	CertificateRef        string
 	CertificateID         int
+	SSLEnabled            bool
 	SSLForced             bool
 	HTTP2Support          bool
 	BlockExploits         bool
@@ -65,6 +69,16 @@ func FromLabels(labels map[string]string) (DesiredHost, error) {
 		scheme = "http"
 	}
 
+	err = validateSSLLabels(labels)
+	if err != nil {
+		return DesiredHost{}, err
+	}
+
+	certificateID, err := resolveCertificateID(labels)
+	if err != nil {
+		return DesiredHost{}, err
+	}
+
 	host := DesiredHost{
 		Enabled:               true,
 		Domain:                domain,
@@ -72,7 +86,9 @@ func FromLabels(labels map[string]string) (DesiredHost, error) {
 		ForwardPort:           forwardPort,
 		ForwardScheme:         scheme,
 		AllowWebsocketUpgrade: parseBool(labels[LabelWebsocket]),
-		CertificateID:         resolveCertificateID(labels),
+		CertificateRef:        strings.TrimSpace(labels[LabelCertificate]),
+		CertificateID:         certificateID,
+		SSLEnabled:            parseBool(labels[LabelSSL]),
 		SSLForced:             parseBool(labels[LabelForceSSL]),
 		HTTP2Support:          parseBoolDefault(labels[LabelHTTP2], true),
 		BlockExploits:         parseBoolDefault(labels[LabelBlockExploits], true),
@@ -85,6 +101,49 @@ func FromLabels(labels map[string]string) (DesiredHost, error) {
 	}
 
 	return host, nil
+}
+
+func validateSSLLabels(labels map[string]string) error {
+	sslEnabled := parseBool(labels[LabelSSL])
+	forceSSL := parseBool(labels[LabelForceSSL])
+	certificateRef := strings.TrimSpace(labels[LabelCertificate])
+	certificateID := strings.TrimSpace(labels[LabelCertificateID])
+
+	if forceSSL && !sslEnabled {
+		return fmt.Errorf("%s=true requires %s=true", LabelForceSSL, LabelSSL)
+	}
+
+	if !sslEnabled {
+		return nil
+	}
+
+	if certificateRef != "" {
+		return nil
+	}
+
+	if certificateID != "" {
+		return nil
+	}
+
+	return fmt.Errorf("%s=true requires %s or %s", LabelSSL, LabelCertificate, LabelCertificateID)
+}
+
+func resolveCertificateID(labels map[string]string) (int, error) {
+	value := strings.TrimSpace(labels[LabelCertificateID])
+	if value == "" {
+		return 0, nil
+	}
+
+	id, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be a number", LabelCertificateID)
+	}
+
+	if id <= 0 {
+		return 0, fmt.Errorf("%s must be greater than 0", LabelCertificateID)
+	}
+
+	return id, nil
 }
 
 func parseBool(value string) bool {
@@ -107,22 +166,4 @@ func parseBoolDefault(value string, defaultValue bool) bool {
 	}
 
 	return parseBool(normalized)
-}
-
-func resolveCertificateID(labels map[string]string) int {
-	if !parseBool(labels[LabelSSL]) {
-		return 0
-	}
-
-	value := strings.TrimSpace(labels["npm.proxy.certificate_id"])
-	if value == "" {
-		return 0
-	}
-
-	id, err := strconv.Atoi(value)
-	if err != nil {
-		return 0
-	}
-
-	return id
 }

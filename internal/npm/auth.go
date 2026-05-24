@@ -14,7 +14,7 @@ type loginResponse struct {
 func (c *Client) Login(ctx context.Context) error {
 	var response loginResponse
 
-	err := c.doJSON(ctx, "POST", "/tokens", loginRequest{
+	err := c.doJSONNoAuth(ctx, "POST", "/tokens", loginRequest{
 		Identity: c.email,
 		Secret:   c.password,
 	}, &response)
@@ -24,7 +24,13 @@ func (c *Client) Login(ctx context.Context) error {
 	}
 
 	c.token = response.Token
-	c.logger.Info("npm login success", "event", "npm_login_success", "base_url", c.baseURL, "email", c.email)
+
+	c.logger.Info(
+		"npm login success",
+		"event", "npm_login_success",
+		"base_url", c.baseURL,
+		"email", c.email,
+	)
 
 	return nil
 }

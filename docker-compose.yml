@@ -1,0 +1,20 @@
+services:
+  npm-docker-auto-proxy:
+    image: tarach/npm-docker-auto-proxy:latest
+    build: .
+    container_name: npm-docker-auto-proxy
+    restart: unless-stopped
+    environment:
+      NPM_BASE_URL: "http://192.168.1.2:30020/api"
+      NPM_EMAIL: "auto.proxy@domain.com"
+      NPM_PASSWORD: "password"
+      LOG_LEVEL: "debug"
+      DOCKER_SOCKET_PATH: "/var/run/docker.sock"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
