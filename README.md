@@ -254,6 +254,69 @@ labels:
   npm.proxy.on_stop: "disable"
 ```
 
+## TrueNAS Scale
+
+TrueNAS Scale Apps expose container labels through the web UI instead of a compose file. Adding many labels by hand is slow and error-prone.
+
+This repository includes Chrome DevTools scripts that automate filling the **Labels** section of a TrueNAS app edit screen. They were tested on **TrueNAS 25.10.3.1 (Goldeye)**. Other Scale versions may work, but UI changes can break the selectors.
+
+Scripts:
+
+```text
+examples/TrueNAS App Labels Configurator.js
+examples/truenas.js
+```
+
+- `TrueNAS App Labels Configurator.js` defines `labelsSetupFunc`, which adds each label key/value pair and assigns it to a container.
+- `truenas.js` is an example call with sample values. Copy and edit it for your app.
+
+### Configure labels in the TrueNAS UI
+
+1. Open the TrueNAS web UI and go to **Apps**.
+2. Open the app you want to configure and click **Edit**.
+3. Scroll to the **Labels** section and leave that section visible on screen.
+4. Open the browser developer tools:
+   - Chrome / Edge: `F12` or `Ctrl+Shift+I` (`Cmd+Option+I` on macOS)
+   - Firefox: `F12` or `Ctrl+Shift+I`
+5. Open the **Console** tab.
+6. Paste the contents of `examples/TrueNAS App Labels Configurator.js` and press Enter.
+7. Edit and paste the contents of `examples/truenas.js`, adjusting:
+   - `labelContainerName` — the container name shown in the TrueNAS Labels UI (for example `subdomain-proxy`)
+   - `labels` — the `npm.proxy.*` labels for that container
+8. Press Enter and wait until the console prints `Done.`
+9. Review the filled labels in the UI, then save and redeploy the app as usual.
+
+Example `truenas.js` values:
+
+```javascript
+const labelContainerName = "subdomain-proxy";
+
+const labels = {
+    "npm.proxy.enabled": "true",
+    "npm.proxy.domain": "subdomain-proxy.domain.com",
+    "npm.proxy.forward_host": "192.168.1.2",
+    "npm.proxy.forward_port": "81",
+    "npm.proxy.scheme": "http",
+    "npm.proxy.websocket": "true",
+    "npm.proxy.ssl": "true",
+    "npm.proxy.certificate": "*.domain.com",
+    "npm.proxy.force_ssl": "true",
+    "npm.proxy.http2": "true",
+    "npm.proxy.block_exploits": "true",
+    "npm.proxy.on_stop": "disable",
+};
+
+labelsSetupFunc(labelContainerName, labels);
+```
+
+Notes:
+
+- Run the script only on the app **Edit** screen while the **Labels** section is present.
+- `labelContainerName` must match the container name shown in the TrueNAS dropdown for that label row.
+- The script adds labels; it does not remove existing ones. Clear unwanted labels manually before running it if needed.
+- After the script finishes, confirm the values in the UI and save the app so Docker receives the updated labels.
+- If TrueNAS updates its UI, the selectors in `TrueNAS App Labels Configurator.js` may need adjustment.
+
 ## Supported labels
 
 ### `npm.proxy.enabled`

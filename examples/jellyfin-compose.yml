@@ -1,0 +1,31 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    container_name: jellyfin
+    restart: unless-stopped
+    volumes:
+      - /mnt/fast/apps/jellyfin/config:/config
+      - /mnt/tank/media:/media
+    networks:
+      proxy:
+        aliases:
+          - jellyfin
+    labels:
+      npm.proxy.enabled: "true"
+      npm.proxy.domain: "jellyfin.domain.com"
+      npm.proxy.forward_host: "jellyfin"
+      npm.proxy.forward_port: "8096"
+      npm.proxy.scheme: "http"
+      npm.proxy.websocket: "true"
+
+      npm.proxy.ssl: "true"
+      npm.proxy.certificate: "*.domain.com"
+      npm.proxy.force_ssl: "true"
+      npm.proxy.http2: "true"
+
+      npm.proxy.block_exploits: "true"
+      npm.proxy.on_stop: "disable"
+
+networks:
+  proxy:
+    external: true
