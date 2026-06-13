@@ -29,13 +29,15 @@ type Syncer struct {
 	docker Docker
 	npm    NPM
 	logger *slog.Logger
+	labels proxy.Labels
 }
 
-func New(docker Docker, npm NPM, logger *slog.Logger) *Syncer {
+func New(docker Docker, npm NPM, logger *slog.Logger, labelsPrefix string) *Syncer {
 	return &Syncer{
 		docker: docker,
 		npm:    npm,
 		logger: logger,
+		labels: proxy.NewLabels(labelsPrefix),
 	}
 }
 
@@ -141,7 +143,7 @@ func (s *Syncer) ResolveCertificate(ctx context.Context, desired proxy.DesiredHo
 			"event", "certificate_resolve_failed",
 			"domain", desired.Domain,
 			"certificate", desired.CertificateRef,
-			"hint", "certificate lookup requires NPM certificate permissions; use npm.proxy.certificate_id if lookup is not available",
+			"hint", "certificate lookup requires NPM certificate permissions; use "+s.labels.CertificateID+" if lookup is not available",
 			"error", err.Error(),
 		)
 
@@ -182,7 +184,7 @@ func (s *Syncer) handleStopEvent(ctx context.Context, event dockerclient.Contain
 }
 
 func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclient.ContainerInfo) error {
-	desired, err := proxy.FromLabels(container.Labels)
+	desired, err := proxy.FromLabels(container.Labels, s.labels)
 	if err != nil {
 		s.logger.Warn(
 			"container has invalid proxy labels",
@@ -282,7 +284,7 @@ func (s *Syncer) HandleContainerStart(ctx context.Context, container dockerclien
 }
 
 func (s *Syncer) HandleContainerStop(ctx context.Context, container dockerclient.ContainerInfo) error {
-	desired, err := proxy.FromLabels(container.Labels)
+	desired, err := proxy.FromLabels(container.Labels, s.labels)
 	if err != nil {
 		s.logger.Warn(
 			"container has invalid proxy labels on stop",

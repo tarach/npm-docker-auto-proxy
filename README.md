@@ -15,6 +15,7 @@ It is intended for homelab setups where containers declare their reverse proxy c
   - [`NPM_PASSWORD`](https://github.com/tarach/npm-docker-auto-proxy#npm_password)
   - [`LOG_LEVEL`](https://github.com/tarach/npm-docker-auto-proxy#log_level)
   - [`DOCKER_SOCKET_PATH`](https://github.com/tarach/npm-docker-auto-proxy#docker_socket_path)
+  - [`LABELS_PREFIX`](https://github.com/tarach/npm-docker-auto-proxy#labels_prefix)
 - [Docker Compose](https://github.com/tarach/npm-docker-auto-proxy#docker-compose)
 - [Build](https://github.com/tarach/npm-docker-auto-proxy#build)
 - [Run](https://github.com/tarach/npm-docker-auto-proxy#run)
@@ -56,6 +57,7 @@ It is intended for homelab setups where containers declare their reverse proxy c
 - Enables proxy hosts when containers start.
 - Disables or deletes proxy hosts when containers stop.
 - Supports SSL certificates by certificate name/domain or certificate ID.
+- Supports a configurable Docker label prefix through `LABELS_PREFIX`.
 - Uses structured JSON logs through Go `log/slog`.
 - Uses Docker Engine HTTP API through `/var/run/docker.sock`.
 - Has no external Go dependencies.
@@ -140,6 +142,7 @@ NPM_EMAIL=admin@example.com
 NPM_PASSWORD=change-me
 LOG_LEVEL=info
 DOCKER_SOCKET_PATH=/var/run/docker.sock
+LABELS_PREFIX=npm.proxy.
 ```
 
 ### `NPM_BASE_URL`
@@ -207,6 +210,38 @@ Default:
 DOCKER_SOCKET_PATH=/var/run/docker.sock
 ```
 
+### `LABELS_PREFIX`
+
+Prefix used for Docker label keys.
+
+Default:
+
+```env
+LABELS_PREFIX=npm.proxy.
+```
+
+With the default prefix, a container uses labels such as `npm.proxy.enabled` and `npm.proxy.domain`.
+
+To use a custom prefix:
+
+```env
+LABELS_PREFIX=myapp.proxy.
+```
+
+Then use matching labels on containers:
+
+```yaml
+labels:
+  myapp.proxy.enabled: "true"
+  myapp.proxy.domain: "app.example.com"
+  myapp.proxy.forward_host: "app"
+  myapp.proxy.forward_port: "8080"
+```
+
+If the prefix does not end with `.`, a trailing dot is added automatically. For example, `myapp.proxy` becomes `myapp.proxy.`.
+
+The `LABELS_PREFIX` value in `npm-docker-auto-proxy` must match the prefix used on container labels.
+
 ## Docker Compose
 
 Example `docker-compose.yml`:
@@ -267,6 +302,8 @@ docker logs -tf npm-docker-auto-proxy
 
 ## Container labels
 
+Containers declare proxy settings through Docker labels. By default, label keys start with `npm.proxy.` (see [`LABELS_PREFIX`](https://github.com/tarach/npm-docker-auto-proxy#labels_prefix)).
+
 A proxied container must have:
 
 ```yaml
@@ -325,7 +362,7 @@ examples/truenas.js
 6. Paste the contents of `examples/TrueNAS App Labels Configurator.js` and press Enter.
 7. Edit and paste the contents of `examples/truenas.js`, adjusting:
    - `labelContainerName` — the container name shown in the TrueNAS Labels UI (for example `subdomain-proxy`)
-   - `labels` — the `npm.proxy.*` labels for that container
+   - `labels` — the proxy labels for that container (default prefix: `npm.proxy.*`; must match [`LABELS_PREFIX`](https://github.com/tarach/npm-docker-auto-proxy#labels_prefix) if customized)
 8. Press Enter and wait until the console prints `Done.`
 9. Review the filled labels in the UI, then save and redeploy the app as usual.
 
@@ -390,7 +427,7 @@ npm.proxy.domain: "jellyfin.domain.com"
 
 This becomes:
 
-```json
+```yaml
 "domain_names": ["jellyfin.domain.com"]
 ```
 
@@ -471,7 +508,7 @@ npm.proxy.websocket: "true"
 
 This becomes:
 
-```json
+```yaml
 "allow_websocket_upgrade": true
 ```
 
@@ -551,7 +588,7 @@ npm.proxy.certificate: "*.domain.com"
 
 the application resolves:
 
-```json
+```yaml
 "certificate_id": 3
 ```
 
@@ -582,7 +619,7 @@ labels:
 
 `npm.proxy.certificate_id` is passed directly to Nginx Proxy Manager as:
 
-```json
+```yaml
 "certificate_id": 3
 ```
 
@@ -855,6 +892,7 @@ export NPM_EMAIL="auto.proxy@example.com"
 export NPM_PASSWORD="change-me"
 export LOG_LEVEL="debug"
 export DOCKER_SOCKET_PATH="/var/run/docker.sock"
+export LABELS_PREFIX="npm.proxy."
 
 go run ./cmd/npm-docker-auto-proxy
 ```

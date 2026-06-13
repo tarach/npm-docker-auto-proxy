@@ -12,6 +12,7 @@ type Config struct {
 	NPMPassword      string
 	LogLevel         string
 	DockerSocketPath string
+	LabelsPrefix     string
 }
 
 func Load() (Config, error) {
@@ -21,6 +22,7 @@ func Load() (Config, error) {
 		NPMPassword:      os.Getenv("NPM_PASSWORD"),
 		LogLevel:         strings.TrimSpace(os.Getenv("LOG_LEVEL")),
 		DockerSocketPath: strings.TrimSpace(os.Getenv("DOCKER_SOCKET_PATH")),
+		LabelsPrefix:     strings.TrimSpace(os.Getenv("LABELS_PREFIX")),
 	}
 
 	if cfg.NPMBaseURL == "" {

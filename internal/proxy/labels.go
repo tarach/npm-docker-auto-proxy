@@ -6,21 +6,51 @@ import (
 	"strings"
 )
 
-const (
-	LabelEnabled       = "npm.proxy.enabled"
-	LabelDomain        = "npm.proxy.domain"
-	LabelForwardHost   = "npm.proxy.forward_host"
-	LabelForwardPort   = "npm.proxy.forward_port"
-	LabelScheme        = "npm.proxy.scheme"
-	LabelWebsocket     = "npm.proxy.websocket"
-	LabelSSL           = "npm.proxy.ssl"
-	LabelCertificate   = "npm.proxy.certificate"
-	LabelCertificateID = "npm.proxy.certificate_id"
-	LabelForceSSL      = "npm.proxy.force_ssl"
-	LabelBlockExploits = "npm.proxy.block_exploits"
-	LabelHTTP2         = "npm.proxy.http2"
-	LabelOnStop        = "npm.proxy.on_stop"
-)
+const DefaultLabelsPrefix = "npm.proxy."
+
+type Labels struct {
+	Prefix           string
+	Enabled          string
+	Domain           string
+	ForwardHost      string
+	ForwardPort      string
+	Scheme           string
+	Websocket        string
+	SSL              string
+	Certificate      string
+	CertificateID    string
+	ForceSSL         string
+	BlockExploits    string
+	HTTP2            string
+	OnStop           string
+}
+
+func NewLabels(prefix string) Labels {
+	if prefix == "" {
+		prefix = DefaultLabelsPrefix
+	}
+
+	if !strings.HasSuffix(prefix, ".") {
+		prefix += "."
+	}
+
+	return Labels{
+		Prefix:        prefix,
+		Enabled:       prefix + "enabled",
+		Domain:        prefix + "domain",
+		ForwardHost:   prefix + "forward_host",
+		ForwardPort:   prefix + "forward_port",
+		Scheme:        prefix + "scheme",
+		Websocket:     prefix + "websocket",
+		SSL:           prefix + "ssl",
+		Certificate:   prefix + "certificate",
+		CertificateID: prefix + "certificate_id",
+		ForceSSL:      prefix + "force_ssl",
+		BlockExploits: prefix + "block_exploits",
+		HTTP2:         prefix + "http2",
+		OnStop:        prefix + "on_stop",
+	}
+}
 
 type DesiredHost struct {
 	Enabled               bool
@@ -43,38 +73,38 @@ type DesiredHost struct {
 	OnStop                StopAction
 }
 
-func FromLabels(labels map[string]string) (DesiredHost, error) {
-	enabled := parseBool(labels[LabelEnabled])
+func FromLabels(labels map[string]string, labelNames Labels) (DesiredHost, error) {
+	enabled := parseBool(labels[labelNames.Enabled])
 	if !enabled {
 		return DesiredHost{Enabled: false}, nil
 	}
 
-	domain := strings.TrimSpace(labels[LabelDomain])
+	domain := strings.TrimSpace(labels[labelNames.Domain])
 	if domain == "" {
-		return DesiredHost{}, fmt.Errorf("%s is required", LabelDomain)
+		return DesiredHost{}, fmt.Errorf("%s is required", labelNames.Domain)
 	}
 
-	forwardHost := strings.TrimSpace(labels[LabelForwardHost])
+	forwardHost := strings.TrimSpace(labels[labelNames.ForwardHost])
 	if forwardHost == "" {
-		return DesiredHost{}, fmt.Errorf("%s is required", LabelForwardHost)
+		return DesiredHost{}, fmt.Errorf("%s is required", labelNames.ForwardHost)
 	}
 
-	forwardPort, err := strconv.Atoi(strings.TrimSpace(labels[LabelForwardPort]))
+	forwardPort, err := strconv.Atoi(strings.TrimSpace(labels[labelNames.ForwardPort]))
 	if err != nil {
-		return DesiredHost{}, fmt.Errorf("%s must be a number", LabelForwardPort)
+		return DesiredHost{}, fmt.Errorf("%s must be a number", labelNames.ForwardPort)
 	}
 
-	scheme := strings.TrimSpace(labels[LabelScheme])
+	scheme := strings.TrimSpace(labels[labelNames.Scheme])
 	if scheme == "" {
 		scheme = "http"
 	}
 
-	err = validateSSLLabels(labels)
+	err = validateSSLLabels(labels, labelNames)
 	if err != nil {
 		return DesiredHost{}, err
 	}
 
-	certificateID, err := resolveCertificateID(labels)
+	certificateID, err := resolveCertificateID(labels, labelNames)
 	if err != nil {
 		return DesiredHost{}, err
 	}
@@ -85,32 +115,32 @@ func FromLabels(labels map[string]string) (DesiredHost, error) {
 		ForwardHost:           forwardHost,
 		ForwardPort:           forwardPort,
 		ForwardScheme:         scheme,
-		AllowWebsocketUpgrade: parseBool(labels[LabelWebsocket]),
-		CertificateRef:        strings.TrimSpace(labels[LabelCertificate]),
+		AllowWebsocketUpgrade: parseBool(labels[labelNames.Websocket]),
+		CertificateRef:        strings.TrimSpace(labels[labelNames.Certificate]),
 		CertificateID:         certificateID,
-		SSLEnabled:            parseBool(labels[LabelSSL]),
-		SSLForced:             parseBool(labels[LabelForceSSL]),
-		HTTP2Support:          parseBoolDefault(labels[LabelHTTP2], true),
-		BlockExploits:         parseBoolDefault(labels[LabelBlockExploits], true),
+		SSLEnabled:            parseBool(labels[labelNames.SSL]),
+		SSLForced:             parseBool(labels[labelNames.ForceSSL]),
+		HTTP2Support:          parseBoolDefault(labels[labelNames.HTTP2], true),
+		BlockExploits:         parseBoolDefault(labels[labelNames.BlockExploits], true),
 		CachingEnabled:        false,
 		HSTSEnabled:           false,
 		HSTSSubdomains:        false,
 		AccessListID:          0,
 		AdvancedConfig:        "",
-		OnStop:                ResolveStopAction(labels[LabelOnStop]),
+		OnStop:                ResolveStopAction(labels[labelNames.OnStop]),
 	}
 
 	return host, nil
 }
 
-func validateSSLLabels(labels map[string]string) error {
-	sslEnabled := parseBool(labels[LabelSSL])
-	forceSSL := parseBool(labels[LabelForceSSL])
-	certificateRef := strings.TrimSpace(labels[LabelCertificate])
-	certificateID := strings.TrimSpace(labels[LabelCertificateID])
+func validateSSLLabels(labels map[string]string, labelNames Labels) error {
+	sslEnabled := parseBool(labels[labelNames.SSL])
+	forceSSL := parseBool(labels[labelNames.ForceSSL])
+	certificateRef := strings.TrimSpace(labels[labelNames.Certificate])
+	certificateID := strings.TrimSpace(labels[labelNames.CertificateID])
 
 	if forceSSL && !sslEnabled {
-		return fmt.Errorf("%s=true requires %s=true", LabelForceSSL, LabelSSL)
+		return fmt.Errorf("%s=true requires %s=true", labelNames.ForceSSL, labelNames.SSL)
 	}
 
 	if !sslEnabled {
@@ -125,22 +155,22 @@ func validateSSLLabels(labels map[string]string) error {
 		return nil
 	}
 
-	return fmt.Errorf("%s=true requires %s or %s", LabelSSL, LabelCertificate, LabelCertificateID)
+	return fmt.Errorf("%s=true requires %s or %s", labelNames.SSL, labelNames.Certificate, labelNames.CertificateID)
 }
 
-func resolveCertificateID(labels map[string]string) (int, error) {
-	value := strings.TrimSpace(labels[LabelCertificateID])
+func resolveCertificateID(labels map[string]string, labelNames Labels) (int, error) {
+	value := strings.TrimSpace(labels[labelNames.CertificateID])
 	if value == "" {
 		return 0, nil
 	}
 
 	id, err := strconv.Atoi(value)
 	if err != nil {
-		return 0, fmt.Errorf("%s must be a number", LabelCertificateID)
+		return 0, fmt.Errorf("%s must be a number", labelNames.CertificateID)
 	}
 
 	if id <= 0 {
-		return 0, fmt.Errorf("%s must be greater than 0", LabelCertificateID)
+		return 0, fmt.Errorf("%s must be greater than 0", labelNames.CertificateID)
 	}
 
 	return id, nil

@@ -43,7 +43,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	service := syncer.New(dockerClient, npmClient, logger)
+	service := syncer.New(dockerClient, npmClient, logger, cfg.LabelsPrefix)
 
 	err = service.SyncRunningContainers(ctx)
 	if err != nil {
