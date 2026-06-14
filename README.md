@@ -1,15 +1,58 @@
 # npm-docker-auto-proxy
 
-`npm-docker-auto-proxy` is a small Go daemon that watches Docker container events and automatically creates, updates, enables, disables, or deletes Nginx Proxy Manager proxy hosts through the NPM API.
-
-It is intended for homelab setups where containers declare their reverse proxy configuration through Docker labels.
-
 Docker image: https://hub.docker.com/r/tarach/npm-docker-auto-proxy  
 Source code: https://github.com/tarach/npm-docker-auto-proxy  
 NPM Repo: https://github.com/NginxProxyManager/nginx-proxy-manager
 
+## TL;DR
+
+`npm-docker-auto-proxy` adds Traefik-like Docker labels to Nginx Proxy Manager.
+
+You keep using NPM as your reverse proxy and UI, but proxy hosts can be created, updated, disabled, or deleted automatically from Docker container labels.
+
+Good for homelab / TrueNAS SCALE / Docker Compose setups where you do not want to manually click through NPM every time you add a service.
+
+### Why?
+
+Nginx Proxy Manager is great when you want a UI for reverse proxy hosts.
+
+But if you run many Docker services, manually creating a proxy host for every container gets repetitive.
+
+This project keeps NPM in place and adds a small automation layer on top of it:
+Docker labels in, NPM proxy hosts out.
+
+### Example
+```yaml
+services:
+  jellyfin:
+    image: jellyfin/jellyfin
+    labels:
+      npm.proxy.enabled: "true"
+      npm.proxy.domain: "jellyfin.example.com"
+      npm.proxy.forward_host: "jellyfin"
+      npm.proxy.forward_port: "8096"
+      npm.proxy.scheme: "http"
+      npm.proxy.ssl: "true"
+      npm.proxy.certificate: "*.example.com"
+      npm.proxy.force_ssl: "true"
+```
+When this container starts, `npm-docker-auto-proxy` creates or updates the matching NPM proxy host automatically.
+
+### What happens on Docker events?
+
+| Docker event | NPM action |
+|---|---|
+| Container starts | Creates, updates, and enables the matching proxy host |
+| Container stops | Disables, deletes, or keeps the proxy host, depending on `npm.proxy.on_stop` |
+| Container is recreated with changed labels | Updates the matching proxy host |
+| `npm-docker-auto-proxy` starts | Runs an initial scan and catches already-running containers |
+
 ## Table of contents
 
+- [TL;DR](https://github.com/tarach/npm-docker-auto-proxy#tldr)
+  - [Why?](https://github.com/tarach/npm-docker-auto-proxy#why)
+  - [Example](https://github.com/tarach/npm-docker-auto-proxy#example)
+  - [What happens on Docker events?](https://github.com/tarach/npm-docker-auto-proxy#what-happens-on-docker-events)
 - [Features](https://github.com/tarach/npm-docker-auto-proxy#features)
 - [How it works](https://github.com/tarach/npm-docker-auto-proxy#how-it-works)
 - [Docker socket access](https://github.com/tarach/npm-docker-auto-proxy#docker-socket-access)
@@ -64,8 +107,6 @@ NPM Repo: https://github.com/NginxProxyManager/nginx-proxy-manager
 - Supports a configurable Docker label prefix through `LABELS_PREFIX`.
 - Uses structured JSON logs through Go `log/slog`.
 - Uses Docker Engine HTTP API through `/var/run/docker.sock`.
-- Has no external Go dependencies.
-- Code style avoids `switch`, `else`, and `else if`.
 
 ## How it works
 
