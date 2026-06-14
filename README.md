@@ -92,6 +92,7 @@ When this container starts, `npm-docker-auto-proxy` creates or updates the match
 - [Example: Jellyfin](https://github.com/tarach/npm-docker-auto-proxy#example-jellyfin)
 - [Testing NPM API access](https://github.com/tarach/npm-docker-auto-proxy#testing-npm-api-access)
 - [Testing backend reachability from NPM](https://github.com/tarach/npm-docker-auto-proxy#testing-backend-reachability-from-npm)
+- [Related projects](https://github.com/tarach/npm-docker-auto-proxy#related-projects)
 - [Development](https://github.com/tarach/npm-docker-auto-proxy#development)
 - [Notes](https://github.com/tarach/npm-docker-auto-proxy#notes)
 
@@ -926,6 +927,17 @@ means the backend is HTTP, not HTTPS. Use:
 ```yaml
 npm.proxy.scheme: "http"
 ```
+
+## Related projects
+
+There are other projects in this space, including:
+
+- https://github.com/Xantios/nginx-proxy-manager-assistant
+- https://github.com/Redth/npm-docker-sync
+
+I did not create this project as competition to them. I simply could not find them earlier when I started working on my own helper.
+
+This implementation focuses on a small Docker-event-based companion container, explicit `npm.proxy.*` labels, predictable start/stop behavior, and a setup that works well for my NPM / Docker Compose / TrueNAS SCALE workflow.
 
 ## Development
 
