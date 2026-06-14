@@ -5,7 +5,7 @@
 It is intended for homelab setups where containers declare their reverse proxy configuration through Docker labels.
 
 Docker image: https://hub.docker.com/r/tarach/npm-docker-auto-proxy  
-Source code: https://github.com/tarach/npm-docker-auto-proxy
+Source code: https://github.com/tarach/npm-docker-auto-proxy  
 NPM Repo: https://github.com/NginxProxyManager/nginx-proxy-manager
 
 ## Table of contents
