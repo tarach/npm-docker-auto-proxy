@@ -4,6 +4,9 @@
 
 It is intended for homelab setups where containers declare their reverse proxy configuration through Docker labels.
 
+Docker image: https://hub.docker.com/r/tarach/npm-docker-auto-proxy  
+Source code: https://github.com/tarach/npm-docker-auto-proxy
+
 ## Table of contents
 
 - [Features](https://github.com/tarach/npm-docker-auto-proxy#features)
