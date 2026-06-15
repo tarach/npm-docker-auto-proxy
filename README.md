@@ -932,6 +932,7 @@ npm.proxy.scheme: "http"
 
 There are other projects in this space, including:
 
+- https://github.com/DeepSpace2/PlugNPiN
 - https://github.com/Xantios/nginx-proxy-manager-assistant
 - https://github.com/Redth/npm-docker-sync
 
